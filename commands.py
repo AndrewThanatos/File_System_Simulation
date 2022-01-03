@@ -19,12 +19,21 @@ class Commands:
         self.fs = None
         print('Unmount')
 
-    def fstat(self, did):
-        print('fstat not implemented')
+    def fstat(self, desc_id):
+        descriptor = self.fs.get_descriptor_by_id(desc_id)
+        if descriptor:
+            print(descriptor)
 
     def ls(self):
-        print('|        Id|           Size|     Ref. count|    Block count|')
-        print('ls not implemented')
+        files, dirs = self.fs.get_descriptors_data_in_dir()
+        if files:
+            print('|%5s|%15s|%15s|%15s|%15s|%15s|' % ('ID', 'Type', 'Data size', 'Full size', 'Ref. count', 'Blocks count'))
+        for file in files:
+            print(file)
+        if dirs:
+            print('|%5s|%15s|%15s|' % ('ID', 'Type', 'Links count'))
+        for directory in dirs:
+            print(directory)
 
     def create(self, name):
         if self.fs.create_file(name):
@@ -39,9 +48,9 @@ class Commands:
             print(f'Closed file id {fd}')
 
     def read(self, fd, offset, size):
-        print(f'File id {fd} data:')
         data = self.fs.read_descriptor(fd, offset, size)
         if data:
+            print(f'File id {fd} data:')
             print(''.join(list(map(str, data))))
 
     def write(self, fd, offset, data):

@@ -2,7 +2,7 @@ from descriptor import FileDescriptor, DirDescriptor
 from constants import DESCRIPTORS_AMOUNT
 from errors import (
     not_enough_descriptors_error, file_not_opened_error, link_not_found_error, file_not_found_by_id_error,
-    file_not_found_by_name_error
+    file_not_found_by_name_error, descriptor_is_not_a_file_error, too_big_offset_error
 )
 
 
@@ -13,13 +13,8 @@ class SystemDriver:
         self._opened_descriptors = []
         self._file_descriptors = {}
         self._dir_descriptors = {}
-        self.root: DirDescriptor = self._create_root_dir()
+        self.root: DirDescriptor = self._add_dir_descriptor()
         self.cwd: DirDescriptor = self.root
-
-    @staticmethod
-    def _create_root_dir():
-        root = DirDescriptor()
-        return root
 
     def _add_file_descriptor(self):
         descriptor = FileDescriptor()
@@ -39,6 +34,13 @@ class SystemDriver:
             return False
         return True
 
+    def _is_file_descriptor(self, fd):
+        if self._descriptor_mapping[fd].type.is_file:
+            return True
+        else:
+            descriptor_is_not_a_file_error()
+            return False
+
     def _check_descriptor_presence_by_name(self, name):
         cwd = self.cwd
         if name not in cwd.links:
@@ -53,14 +55,19 @@ class SystemDriver:
             descriptor = self._add_file_descriptor()
             cwd = self.cwd
             cwd.links[name] = descriptor.desc_id
+            return True
         else:
             not_enough_descriptors_error()
+            return
 
     def open_descriptor(self, name):
         if not self._check_descriptor_presence_by_name(name):
             return
         descriptor = self._descriptor_mapping[self.cwd.links[name]]
+        if not self._is_file_descriptor(descriptor.desc_id):
+            return
         self._opened_descriptors.append(descriptor.desc_id)
+        return True
 
     def close_descriptor(self, fd):
         if fd in self._opened_descriptors:
@@ -69,16 +76,16 @@ class SystemDriver:
             file_not_opened_error()
 
     def read_descriptor(self, fd, offset, size):
-        if not self._check_descriptor_presence_by_id(fd):
+        if not self._check_descriptor_presence_by_id(fd) or not self._is_file_descriptor(fd):
             return
         descriptor = self._descriptor_mapping[fd]
         if descriptor.get_full_size() < offset:
-            print('Offset size is too big')
+            too_big_offset_error()
             return
         return descriptor.get_descriptor_data(offset, size)
 
     def write_descriptor(self, fd, offset, data):
-        if not self._check_descriptor_presence_by_id(fd):
+        if not self._check_descriptor_presence_by_id(fd) or not self._is_file_descriptor(fd):
             return
         descriptor = self._descriptor_mapping[fd]
         descriptor.add_descriptor_data(offset, data)
@@ -108,8 +115,29 @@ class SystemDriver:
             return
         cwd = self.cwd
         descriptor = self._descriptor_mapping[cwd.links[name]]
+        if not self._is_file_descriptor(descriptor.desc_id):
+            return
         descriptor.change_descriptor_size(new_size)
         return True
+
+    def get_descriptors_data_in_dir(self):
+        cwd = self.cwd
+        files = set()
+        dirs = set()
+        for _, desc_id in cwd.links.items():
+            descriptor = self._descriptor_mapping[desc_id]
+            if descriptor.type.is_file:
+                files.add(descriptor)
+            elif descriptor.type.is_dir:
+                dirs.add(descriptor)
+
+        return files, dirs
+
+    def get_descriptor_by_id(self, desc_id):
+        if not self._check_descriptor_presence_by_id(desc_id):
+            return
+        return self._descriptor_mapping[desc_id]
+
 
 
 

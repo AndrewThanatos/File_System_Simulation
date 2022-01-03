@@ -23,3 +23,11 @@ def file_not_found_by_id_error():
 
 def file_not_found_by_name_error():
     print_red('File was not found by name')
+
+
+def descriptor_is_not_a_file_error():
+    print_red('Descriptor is not a file')
+
+
+def too_big_offset_error():
+    print_red('Offset is too big')

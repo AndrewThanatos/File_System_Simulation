@@ -6,11 +6,19 @@ class DescriptorType:
     is_dir = None
     is_file = None
 
+    def repr(self):
+        if self.is_dir:
+            return 'Dir.'
+        elif self.is_file:
+            return 'File'
+        else:
+            return 'UND.'
+
 
 class Descriptor:
     def __init__(self):
         self.desc_id = self._get_descriptor_id()
-        self.type = DescriptorType
+        self.type = DescriptorType()
 
     @staticmethod
     def _get_descriptor_id():
@@ -25,7 +33,7 @@ class FileDescriptor(Descriptor):
         self.type.is_file = True
 
     def get_size(self):
-        return sum(block.size() for block in self.blocks)
+        return sum(block.size for block in self.blocks)
 
     def get_full_size(self):
         return len(self.blocks) * BLOCK_SIZE
@@ -79,12 +87,22 @@ class FileDescriptor(Descriptor):
         while self.blocks[-1].remove_data(block_offset):
             block_offset += 1
 
+    def __repr__(self):
+        return '|%5d|%15s|%15d|%15d|%15d|%15d|' % (
+            self.desc_id, self.type.repr(), self.get_size(), self.get_full_size(), self.ref_count, len(self.blocks)
+        )
+
 
 class DirDescriptor(Descriptor):
     def __init__(self):
         super().__init__()
         self.links = {}
         self.type.is_dir = True
+
+    def __repr__(self):
+        return '|%5d|%15s|%15d|' % (
+            self.desc_id, self.type.repr(), len(self.links)
+        )
 
 
 
