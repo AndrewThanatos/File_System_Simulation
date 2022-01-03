@@ -52,7 +52,7 @@ def client():
     cmd.create('test')
     cmd.write(1, 33, 'Some new data')
     cmd.read(1, 3, 13)
-    cmd.read(1, 0, 100)
+    cmd.read(0, 0, 100)
     cmd.ls()
     cmd.fstat(0)
     cmd.open('file2')

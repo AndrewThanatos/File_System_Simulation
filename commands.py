@@ -27,36 +27,38 @@ class Commands:
         print('ls not implemented')
 
     def create(self, name):
-        self.fs.create_file(name)
-        print(f'Created file {name}')
+        if self.fs.create_file(name):
+            print(f'Created file {name}')
 
     def open(self, name):
-        self.fs.open_descriptor(name)
-        print(f'Opened file {name}')
+        if self.fs.open_descriptor(name):
+            print(f'Opened file {name}')
 
     def close(self, fd):
-        self.fs.close_descriptor(fd)
-        print(f'Closed file id {fd}')
+        if self.fs.close_descriptor(fd):
+            print(f'Closed file id {fd}')
 
     def read(self, fd, offset, size):
         print(f'File id {fd} data:')
-        print(''.join(list(map(str, self.fs.read_descriptor(fd, offset, size)))))
+        data = self.fs.read_descriptor(fd, offset, size)
+        if data:
+            print(''.join(list(map(str, data))))
 
     def write(self, fd, offset, data):
-        self.fs.write_descriptor(fd, offset, data)
-        print(f'Write file id {fd}')
+        if self.fs.write_descriptor(fd, offset, data):
+            print(f'Write file id {fd}')
 
     def link(self, name1, name2):
-        self.fs.link_descriptor(name1, name2)
-        print(f'Linked | {name1} -> {name2}')
+        if self.fs.link_descriptor(name1, name2):
+            print(f'Linked | {name1} -> {name2}')
 
     def unlink(self, name):
-        self.fs.unlink_descriptor(name)
-        print(f'Unlinked | {name}')
+        if self.fs.unlink_descriptor(name):
+            print(f'Unlinked | {name}')
 
     def truncate(self, name, size):
-        self.fs.change_file_size(name, size)
-        print('Change file size')
+        if self.fs.change_file_size(name, size):
+            print('Change file size')
 
 
 
