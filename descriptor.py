@@ -1,95 +1,92 @@
-from constants import BLOCK_SIZE
+from constants import SYSTEM_WIDE, BLOCK_SIZE
 from block import Block
 
 
+class DescriptorType:
+    is_dir = None
+    is_file = None
+
+
 class Descriptor:
-    def __init__(self, is_dir):
-        self.is_dir = is_dir
-        self.is_file = not self.is_dir
-        self.desc_id = None
+    def __init__(self):
+        self.desc_id = self._get_descriptor_id()
+        self.type = DescriptorType
+
+    @staticmethod
+    def _get_descriptor_id():
+        return SYSTEM_WIDE['descriptors_id'].pop(0)
+
+
+class FileDescriptor(Descriptor):
+    def __init__(self):
+        super().__init__()
         self.ref_count = 1
-        self.byte_size = 0
-        self.blocks = []
-        self.dir_links = []
+        self.blocks: list[Block] = []
+        self.type.is_file = True
 
-    def read_data(self, offset, size):
-        if size + offset > self.byte_size:
-            size = self.byte_size - offset
-        end = offset + size
-        start_block = offset // BLOCK_SIZE
-        end_block = end // BLOCK_SIZE
-        if start_block == end_block:
-            return self.blocks[start_block].data[offset % BLOCK_SIZE: end % BLOCK_SIZE]
-        data = self.blocks[start_block].data[offset % BLOCK_SIZE:]
-        for block in self.blocks[start_block + 1: end_block]:
-            data += block.data
-        data += self.blocks[end_block].data[: end % BLOCK_SIZE]
-        return data
+    def get_size(self):
+        return sum(block.size() for block in self.blocks)
 
-    def write_data(self, offset, data):
-        if not self.blocks:
-            self._add_empty_block()
-        if offset > self.byte_size:
-            offset = self.byte_size
-        start_block = offset // BLOCK_SIZE
-
-        counter = 0
-        data = list(data)
-        for i in range(offset % BLOCK_SIZE, BLOCK_SIZE):
-            if counter >= len(data):
-                break
-            if i >= self.byte_size:
-                self.blocks[start_block].data += data[counter]
-            else:
-                self.blocks[start_block].data[i] = data[counter]
-            counter += 1
-        data = data[counter:]
-        start_block += 1
-        while data:
-            if start_block > len(self.blocks) - 1:
-                data = self._add_data_block(data)
-            else:
-                block = self.blocks[start_block]
-                data = self._fill_data_block(block, data)
-            start_block += 1
-
-        self._set_descriptor_size()
-
-    def _add_data_block(self, data):
-        block_data = data[:BLOCK_SIZE] if len(data) > BLOCK_SIZE else data
-        self.blocks.append(Block(data=block_data))
-        return data[BLOCK_SIZE:] if len(data) > BLOCK_SIZE else None
+    def get_full_size(self):
+        return len(self.blocks) * BLOCK_SIZE
 
     def _add_empty_block(self):
-        self.blocks.append(Block(data=[]))
+        self.blocks.append(Block())
 
-    def _fill_data_block(self, block, data):
-        block_data = data[:BLOCK_SIZE] if len(data) > BLOCK_SIZE else data
-        block.data[: len(block_data)] = block_data
-        return data[BLOCK_SIZE:] if len(data) > BLOCK_SIZE else None
+    def add_descriptor_data(self, offset, data):
+        data = list(data)
+        while offset + len(data) >= self.get_full_size():
+            self._add_empty_block()
 
-    def _set_descriptor_size(self):
-        if not self.blocks:
-            self.byte_size = 0
-            return
-        self.byte_size = (len(self.blocks) - 1) * BLOCK_SIZE + self.blocks[-1].size()
+        block_index = offset // BLOCK_SIZE
+        block_offset = offset % BLOCK_SIZE
+        while data:
+            if not self.blocks[block_index].add_data(block_offset, data[0]):
+                block_offset = 0
+                block_index += 1
+            else:
+                data.pop(0)
+                block_offset += 1
 
-    def print_descriptor_data(self):
-        print(f'Id = {self.desc_id} | Size = {self.byte_size} | Ref. Count = {self.ref_count} | '
-              f'Block amount = {len(self.blocks)}')
+    def get_descriptor_data(self, offset, size):
+        cur_size = 0
+        result = []
+        block_index = offset // BLOCK_SIZE
+        block_offset = offset % BLOCK_SIZE
 
-    def change_size(self, new_size):
-        if len(self.blocks) * BLOCK_SIZE < new_size:
-            block_to_add = new_size // BLOCK_SIZE - len(self.blocks)
-            for _ in range(block_to_add):
-                self._add_empty_block()
-        else:
-            blocks = new_size // BLOCK_SIZE
-            offset = new_size % BLOCK_SIZE
-            self.blocks[blocks].data = self.blocks[blocks].data[:offset]
-            self.blocks = self.blocks[:blocks + 1]
+        while cur_size != size and not block_index >= len(self.blocks):
+            byte_data = self.blocks[block_index].get_data(block_offset)
+            if byte_data:
+                result.append(byte_data)
+                cur_size += 1
+            block_offset += 1
+            if block_offset == BLOCK_SIZE:
+                block_offset = 0
+                block_index += 1
 
-        self._set_descriptor_size()
+        return result
+
+    def change_descriptor_size(self, new_size):
+        while new_size > self.get_full_size():
+            self._add_empty_block()
+
+        block_amount = len(self.blocks)
+        new_block_amount = new_size // BLOCK_SIZE
+        for i in range(new_block_amount, block_amount - 1):
+            self.blocks.pop(new_block_amount)
+
+        block_offset = new_size % BLOCK_SIZE
+        while self.blocks[-1].remove_data(block_offset):
+            block_offset += 1
+
+
+class DirDescriptor(Descriptor):
+    def __init__(self):
+        super().__init__()
+        self.links = {}
+        self.type.is_dir = True
+
+
 
 
 

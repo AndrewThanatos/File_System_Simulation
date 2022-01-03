@@ -20,41 +20,38 @@ class Commands:
         print('Unmount')
 
     def fstat(self, did):
-        descriptor = self.fs.descriptor_mapping[did]
-        descriptor.print_descriptor_data()
+        print('fstat not implemented')
 
     def ls(self):
         print('|        Id|           Size|     Ref. count|    Block count|')
-        for descriptor in self.fs.file_descriptors:
-            print('|%10d|%15d|%15d|%15d|' %
-                  (descriptor.desc_id, descriptor.byte_size, descriptor.ref_count, len(descriptor.blocks)))
+        print('ls not implemented')
 
     def create(self, name):
         self.fs.create_file(name)
         print(f'Created file {name}')
 
     def open(self, name):
-        self.fs.open(name)
+        self.fs.open_descriptor(name)
         print(f'Opened file {name}')
 
     def close(self, fd):
-        self.fs.close(fd)
+        self.fs.close_descriptor(fd)
         print(f'Closed file id {fd}')
 
     def read(self, fd, offset, size):
         print(f'File id {fd} data:')
-        print(''.join(list(map(str, self.fs.read(fd, offset, size)))))
+        print(''.join(list(map(str, self.fs.read_descriptor(fd, offset, size)))))
 
     def write(self, fd, offset, data):
-        self.fs.write(fd, offset, data)
+        self.fs.write_descriptor(fd, offset, data)
         print(f'Write file id {fd}')
 
     def link(self, name1, name2):
-        self.fs.link(name1, name2)
+        self.fs.link_descriptor(name1, name2)
         print(f'Linked | {name1} -> {name2}')
 
     def unlink(self, name):
-        self.fs.unlink(name)
+        self.fs.unlink_descriptor(name)
         print(f'Unlinked | {name}')
 
     def truncate(self, name, size):

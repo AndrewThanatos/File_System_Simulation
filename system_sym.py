@@ -1,61 +1,86 @@
-from descriptor import Descriptor
+from descriptor import FileDescriptor, DirDescriptor
 from constants import DESCRIPTORS_AMOUNT
+from errors import (
+    not_enough_descriptors_error, file_not_opened_error, link_not_found_error, file_not_found_error
+)
 
 
 class SystemDriver:
-    def __init__(self, descriptor_amount):
-        self.descriptor_mapping = {}
-        self.opened_descriptors = {}
-        self.file_descriptors = []
-        self.links = {}
-        self._fd_num = 0
-        self._opened_fd_num = 0
+    def __init__(self, descriptor_amount=DESCRIPTORS_AMOUNT):
+        self.MAX_DESCRIPTORS = descriptor_amount
+        self._descriptor_mapping = {}
+        self._opened_descriptors = []
+        self._file_descriptors = {}
+        self._dir_descriptors = {}
+        self.root: DirDescriptor = self._create_root_dir()
+        self.cwd: DirDescriptor = self.root
 
-    def _add_descriptor(self, descriptor):
-        self.descriptor_mapping[self._fd_num] = descriptor
-        descriptor.desc_id = self._fd_num
-        if descriptor.is_file:
-            self.file_descriptors.append(descriptor)
-        self._fd_num += 1
+    @staticmethod
+    def _create_root_dir():
+        root = DirDescriptor()
+        return root
 
-    def _open_descriptor(self, descriptor):
-        self.opened_descriptors[self._opened_fd_num] = descriptor
-        self._opened_fd_num += 1
+    def _add_file_descriptor(self):
+        descriptor = FileDescriptor()
+        self._descriptor_mapping[descriptor.desc_id] = descriptor
+        self._file_descriptors[descriptor.desc_id] = descriptor
+        return descriptor
+
+    def _add_dir_descriptor(self):
+        descriptor = DirDescriptor()
+        self._descriptor_mapping[descriptor.desc_id] = descriptor
+        self._dir_descriptors[descriptor.desc_id] = descriptor
+        return descriptor
 
     def create_file(self, name):
-        if len(self.descriptor_mapping) < DESCRIPTORS_AMOUNT:
-            descriptor = Descriptor(is_dir=False)
-            self._add_descriptor(descriptor)
-            self.links[name] = descriptor.desc_id
+        if len(self._descriptor_mapping) <= self.MAX_DESCRIPTORS:
+            descriptor = self._add_file_descriptor()
+            cwd = self.cwd
+            cwd.links[name] = descriptor.desc_id
+        else:
+            not_enough_descriptors_error()
 
-    def open(self, name):
-        descriptor = self.descriptor_mapping[self.links[name]]
-        self._open_descriptor(descriptor)
+    def open_descriptor(self, name):
+        descriptor = self._descriptor_mapping[self.cwd.links[name]]
+        self._opened_descriptors.append(descriptor.desc_id)
 
-    def close(self, fd):
-        self.opened_descriptors.pop(fd)
+    def close_descriptor(self, fd):
+        if fd in self._opened_descriptors:
+            self._opened_descriptors.remove(fd)
+        else:
+            file_not_opened_error()
 
-    def read(self, fd, offset, size):
-        descriptor = self.descriptor_mapping[fd]
-        if descriptor.byte_size < offset:
+    def read_descriptor(self, fd, offset, size):
+        descriptor = self._descriptor_mapping[fd]
+        if descriptor.get_full_size() < offset:
             print('Offset size is too big')
             return None
-        return descriptor.read_data(offset, size)
+        return descriptor.get_descriptor_data(offset, size)
 
-    def write(self, fd, offset, data):
-        descriptor = self.descriptor_mapping[fd]
-        descriptor.write_data(offset, data)
+    def write_descriptor(self, fd, offset, data):
+        descriptor = self._descriptor_mapping[fd]
+        descriptor.add_descriptor_data(offset, data)
 
-    def link(self, name1, name2):
-        self.links[name1] = name2
-        self.descriptor_mapping[name2].ref_count += 1
+    def link_descriptor(self, name1, name2):
+        cwd = self.cwd
+        descriptor = self._descriptor_mapping[cwd.links[name2]]
+        cwd.links[name1] = descriptor.desc_id
+        self._descriptor_mapping[descriptor.desc_id].ref_count += 1
 
-    def unlink(self, name):
-        self.links.pop(name)
+    def unlink_descriptor(self, name):
+        cwd = self.cwd
+        if name in cwd.links:
+            cwd.links.pop(name)
+        else:
+            link_not_found_error()
 
     def change_file_size(self, name, new_size):
-        descriptor = self.descriptor_mapping[self.links[name]]
-        descriptor.change_size(new_size)
+        cwd = self.cwd
+        if name in cwd.links:
+            descriptor = self._descriptor_mapping[cwd.links[name]]
+            descriptor.change_descriptor_size(new_size)
+        else:
+            file_not_found_error()
 
 
 
