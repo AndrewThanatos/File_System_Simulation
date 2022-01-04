@@ -25,7 +25,8 @@ class Commands:
             print(descriptor)
 
     def ls(self):
-        files, dirs = self.fs.get_descriptors_data_in_dir()
+        print('-'*100)
+        files, dirs, symlinks = self.fs.get_descriptors_data_in_dir()
         if files:
             print('|%5s|%15s|%15s|%15s|%15s|%15s|' % ('ID', 'Type', 'Data size', 'Full size', 'Ref. count', 'Blocks count'))
         for file in files:
@@ -34,6 +35,11 @@ class Commands:
             print('|%5s|%15s|%15s|' % ('ID', 'Type', 'Links count'))
         for directory in dirs:
             print(directory)
+        if symlinks:
+            print('Symlinks:')
+        for symlink in symlinks:
+            print(symlink)
+
 
     def create(self, name):
         if self.fs.create_file(name):
@@ -68,6 +74,22 @@ class Commands:
     def truncate(self, name, size):
         if self.fs.change_file_size(name, size):
             print('Change file size')
+
+    def mkdir(self, path):
+        if self.fs.create_directory(path):
+            print('Directory created')
+
+    def rmdir(self, path):
+        if self.fs.remove_directory(path):
+            print('Directory deleted')
+
+    def cd(self, path):
+        if self.fs.change_cwd(path):
+            print('CWD changed')
+
+    def symblink(self, data, path):
+        self.fs.create_symblink(data, path)
+        print('Symlink created')
 
 
 

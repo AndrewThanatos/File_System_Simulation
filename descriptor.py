@@ -5,12 +5,15 @@ from block import Block
 class DescriptorType:
     is_dir = None
     is_file = None
+    is_symblink = None
 
     def repr(self):
         if self.is_dir:
             return 'Dir.'
         elif self.is_file:
             return 'File'
+        elif self.is_symblink:
+            return 'Symblink'
         else:
             return 'UND.'
 
@@ -97,12 +100,33 @@ class DirDescriptor(Descriptor):
     def __init__(self):
         super().__init__()
         self.links = {}
+        self.default_links = {}
         self.type.is_dir = True
 
     def __repr__(self):
         return '|%5d|%15s|%15d|' % (
             self.desc_id, self.type.repr(), len(self.links)
         )
+
+    def set_default_links(self, prev_desk_id):
+        self.default_links = {'.': self.desc_id, '..': prev_desk_id}
+
+    def set_default_root_links(self):
+        self.default_links = {'.': self.desc_id, '..': self.desc_id}
+
+
+class SymbLinkDescriptor(Descriptor):
+    def __init__(self):
+        super().__init__()
+        self.links = {}
+        self.type.is_symblink = True
+        self.path = ''
+
+    def set_path(self, path):
+        self.path = path
+
+    def __repr__(self):
+        return 'ID = %3d, path: %s' % (self.desc_id, self.path)
 
 
 

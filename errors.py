@@ -31,3 +31,7 @@ def descriptor_is_not_a_file_error():
 
 def too_big_offset_error():
     print_red('Offset is too big')
+
+
+def not_correct_path_error():
+    print_red('Not correct path')
